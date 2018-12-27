@@ -1,0 +1,465 @@
+Created data/db folder under root
+
+Added path export in .bash_profile (in /) needed to added write access to wheel
+and users
+
+Had to run `defaults write com.apple.finder AppleShowAllFiles YES`
+and then relaunch finder to see it.
+
+`mongod` to start the server
+
+`mongo` to connect to shell
+
+`show dbs` to show all dbs
+
+`use shop` creates db shop if does not exist (cannot see it listed until data is added),
+and sets it to the db you are using in the shell
+
+`db.products.insertOne({name: "Bands Of Mourning", price: 10.99})` creates a collection and inserts a doc
+`db.products.find()` gives all docs (.pretty() gives a nicer output)
+
+https://docs.mongodb.com/ecosystem/drivers/
+^ to find the connections to different languages
+
+mongo by default runs on port 27017 
+`mongo --port` to connect to it on the given port
+
+`mongod --port` to start server on a different port
+
+
+[
+    {
+        "name": "Ollie",
+        "color": "Orange",
+        "age": 3,
+        "hungry": true
+        "type": "Cat" // replace with object? or reference? or Id?
+    },
+    {
+        "name": "Norman",
+        "color": "Black",
+        "age": 2,
+        "hungry": true,
+        "type": "Cat" // replace with object? or reference? or Id?
+    },
+    {
+        "name": "Cooper",
+        "color": "White",
+        "age": 11,
+        "hungry": false,
+        "type": "Dog" // replace with object? or reference? or Id?
+    },
+    {
+        "name": "Eleanor",
+        "color": "Tiger",
+        "age": 1,
+        "hungry": false,
+        "type": "Cat" // replace with object? or reference? or Id?
+    },
+]
+
+JSON is stored as BSON (Binary data) which is more efficient in terms of storage space
+and access
+
+Also supports additional types, ObjectId(...) is not a valid json type for instance
+
+_id can be set manually, it just needs to be unique. If not defined, it will be generated
+
+Create
+
+    insertOne(data, options)
+    insertMany(data, options) // [{}, {}, ...]
+
+Read
+    find(filter, options) // find all match, no filter just gives all
+    findOne(filter, options) // find first match
+
+Update
+    updateOne(filter, data, options)
+    updateMany(filter, data, options) // [{}, {}, ...]
+    replaceOne(filter, data, options)
+
+Delete
+    deleteOne(data, options)
+    deleteMany(data, options)
+
+filters are defined as a document, and any match will pass
+deleteOne({ type: "Cat"}) will delete all documents with type === "Cat"
+
+returns an object that contains the deleteCount and acknowledgement (true if command was successful)
+
+update filter works the same way. data shows how to change
+
+updateOne({ name: "Ollie"}, { $set: { tailLength: 9.0 } })
+$ shows that this is a reserved operator
+$set takes a document which is used to apply changes, the example above 
+adds the key tailLength with value 9.0 -- or updates the data if existing (merges existing data, non destructive)
+
+updateMany would make the change on all matching documents.
+
+for any filter, {} matches all documents in the collection
+
+db.petsData.insertMany(
+    [
+    {
+        "name": "Ollie",
+        "color": "Orange",
+        "age": 3,
+        "hungry": true,
+        "type": "Cat"
+    },
+    {
+        "name": "Norman",
+        "color": "Black",
+        "age": 2,
+        "hungry": true,
+        "type": "Cat" 
+    },
+    {
+        "name": "Cooper",
+        "color": "White",
+        "age": 11,
+        "hungry": false,
+        "type": "Dog"
+    },
+    {
+        "name": "Eleanor",
+        "color": "Tiger",
+        "age": 1,
+        "hungry": false,
+        "type": "Cat"
+    }
+    ]
+)
+
+when inserting many the ids are sequential with the ending characters going sequentially
+
+find() also accepts a filter document
+
+db.petsData.find({ age: {$gt: 2 } }) returns all that have an age > 2
+using findOne will return the first that have an age > 2, the order of first match 
+probably goes by the id sequence?
+
+difference between update and updateMany/updateOne
+
+update doesn't require the { $set: { ... } } syntax
+
+db.petsData.update({ _id: ObjectId(...) }, { hungry: true }) this is a 
+destructive operation replacing the matching doc with the given one.
+updateOne and updateMany require the set syntax which is non destructive. 
+update can also use the $set syntax though
+
+so basically you can use update to replace or merge
+
+max recommends using replaceOne if you want to replace, it is more clear what you are doing
+
+
+find command gives you a cursor object to your data.
+
+cursor has metadata allowing us to fetch data in chunks instead of sending the whole thing
+
+find().toArray() gives you the whole set as an array (exhausts the cursor)
+
+find().forEach((doc) => ...) iterates over every document given, fetchs each doc as it goes 
+to avoid memory issues
+
+Projection
+
+filtering out uneeded data when fetching
+
+db.petsData.find({}, {name: 1}) gives back all documents, but just with the name field
+
+id is always included, unless explicitly excluded. Everything else
+is excluded by default if not described.
+
+db.petsData.find({}, {name: 1, _id: 0}) // 0 tells to exclude
+
+This inclusion/exclusion happens server side before data is sent to client 
+which is good for data transfer
+
+Embedded docs 
+
+Documents can have up to 100 levels of nesting
+
+overall document size must be <=16mb (hard to hit that though)
+
+Arrays can hold any data
+
+db.petsData.updateMany({ type: "Cat"} {$set: type: {
+    description: "Cat",
+    family: "Feline",
+    hasTail: true
+}});
+
+Document schemas & Data types & Relations & Validation
+
+ObjectId has a temporal aspect, so sorting on when created is preserved (neat)
+Timestamps are always unique as well
+
+can use typeof to check the type
+
+https://docs.mongodb.com/manual/reference/bson-types/
+
+Nested doc vs reference 
+
+reference is just an id of the document
+
+One to one relations:
+
+* probably use embedded doc most of the time
+
+A case where the two pieces of the relationship may not ever be needed together, or they are 
+more often needed individually (say analytics?) storing as a reference would make more sense 
+(keeping data transfer down)
+
+One to many relations:
+
+Again this one probably makes more sense to embed because the many always only belong to the one.
+
+Again If the use case is to not handle the data all together in the app, then splitting them up makes more sense 
+(one screen for the parent object, a separate screen, or modal one for the many children).
+Another way to think about this is if the many part of the relationship is huge, say city and citizens
+For one to many reference relations definitely make sure the reference is on the children back to the parent.
+otherwise, again too much data
+
+Many to many generally done with references
+
+In sql this is generally done with join tables
+
+Sometimes it could make sense to use embedded approach if you want a 'snapshot' prices can change 
+for example on products, so if you want to keep the price that the person got on the order,
+using an embedded might be the best here (however it still might be a good idea to have a reference to
+the product doc for any future use cases)
+
+Joining with $lookup
+
+{
+    "_id": "..."
+    "name": "Ollie",
+    "color": "Orange",
+    "age": 3,
+    "hungry": true,
+    "type": 'catId'
+}
+
+
+{
+    _id: 'catId',
+    description: 'Cat'
+}
+
+petsData.aggregate([
+    {
+        $lookup: {
+            from: "animalTypes",
+            localField: "typeId", // field in petsData that relates to animalTypes
+            foreignField: "_id", // field that localField maps to in the foreign collection
+            as: "type" // key to hold the data that is merged in
+
+        }
+    }
+]);
+
+^ This works for arrays as well
+
+Blog 
+
+Users collection 
+    * embedded comments
+
+Posts collection 
+    * embedded comments
+    * userId reference
+
+embedding comments in both could be good, then the user could have a dash where they can edit the comment they made 
+It would be tough to grab all comments the user made if they only existed on posts
+
+as long as we are okay with syncing editing/deleting comments in two places. Which should not 
+be something that happens TOO often.
+
+Validation schema:
+
+validationLevel:
+strict: all inserts/updates 
+moderate: only inserts and updates on previously corrected docs 
+if a document was inserted before the rules for instance then it will not be checked 
+
+validationAction:
+
+error or warn (error, no change. warn lets the change through and logs a warning)
+
+db.createCollection("name", { 
+    validator: { 
+        $jsonSchema: {
+            bsonType: "object", // all must be valid documents in this collection
+            required: ["field1", "field2"] // these fields are required on each document,
+            properties: { // validate properties on documents
+                title: {
+                    bsonType: "string", 
+                    description: "Must be string"
+                },
+                creator: {
+                    bsonType: "objectId"
+                }
+            }
+        } 
+    },
+    validationAction: "error"
+});
+
+db.runCommand({
+    collMod: "posts",
+    ...thingToChange // for example the document with validator in it above -- the whole second argument
+})
+
+mongod --fork runs the db as a background service, this needs a --logpath specificed 
+
+to shut it down, connect, use admin, db.shutdownServer();
+
+Can also use a config file to run the server (good idea ;]) (--config path/to/config/file)
+
+https://docs.mongodb.com/manual/reference/configuration-options/
+
+insert does not return the result with the auto gen id 
+
+insertOne/Many does 
+
+inserts are done one at a time ordered. A failure will cancel the rest, but NOT rollback
+insertMany([], {ordered: false}) will continue to insert after any failures 
+(crud ops are only atomic on a document level)
+
+writeConcern {w: 1, j: undefined} w is how many instances to write to, j is journal used to save 
+operations that need to be completed. The write is written to the journal, if the server goes down or something 
+and memory is wiped, then the write will still happen (probably) as described in the journal
+
+j: true -- only report write success when the write is saved to the journal.
+This does make your writes take a little longer
+
+wtimeout, how long to wait for write success before canceling.
+
+insertMany([], {writeConcern: {...} })
+
+importing data from a .json file
+
+from terminal:
+
+mongoimport /path/to/filename.json -d database -c collection --jsonArray // by default imports just a simple doc
+
+--drop deletes the existing collection before adding the import data. by default it just appends the data
+
+Reading
+
+filters 
+
+find({ age: {$gt: 32}}) $gt --> operator, creates range filter
+
+Query selectors:
+
+comparison
+$eq $gt $lt etc.
+$in: [...values], matches any of the values in the array
+$nin: [...values], matches none of the values in the array
+
+find({"embeddedDoc.fieldName": {$gt: 1}}) // querying embedded doc 
+find({embeddedArray: value}) // finds any doc where the embedded array has the given value in it
+
+find({embeddedArray: [value]}) // exact match for array values
+
+
+evaluation 
+logical 
+array 
+element 
+comment 
+geospatial
+
+Projection selectors 
+$ 
+$elemMatch 
+$meta 
+$slice
+
+
+https://www.digitalocean.com/products/one-click-apps/mongodb/
+
+$or:[...conditions]
+
+conditions is an array of any other filter expression 
+
+say {$lt: 10}
+
+same with $nor
+
+$and is the default behavior for find 
+
+{field1: 10, field2: 'foo'} ands those together. But we have an operator so that we can compose!
+
+{field: {$exists: true, $ne: null}} checks if field exists and not null
+
+$expr: { $gt: ["$field1", "$field2"]} evals which field has a larger value
+
+$expr: { 
+    $gt: [
+        { $cond: if: { 
+            $gte: ["$volume", 190]
+            }, then: {
+                $subtract: ["$volume", 10] // for each volume >= 190 minus 10
+                }, $else: "$volume"
+        } // result of the condition 
+    ], "$target"
+}
+
+Querying arrays 
+
+find({"arrayField.field": "value"}) checks for all docs that match where they have an 
+array of docs where the field === value
+
+find({arrayField: {$size: 3}}) gets all docs where array has a length of 3 exactly
+
+find({arrayField: {$all: [1,2]}}) finds where those two elements exist, does not care about order
+
+find({arrayField: {$elemMatch: {field1: "value1", field2: {$gte: 3}}}) if at least one doc in array matches 
+this elem match, then include it.
+
+find().count() gives us the number of elements we can get from the cursor.
+This is because the query has been run, and the data is waiting in memory to be given to us
+
+find().next() gives next document in the cursor
+
+find().forEach(doc => { printjson(doc) })
+
+hasNext() tells if we have a next document 
+
+
+in sorting -1 is descending, 1 is ascending
+
+sort({"nestedDoc.value": -1, otherKey: -1})
+
+sort by the first criteria first, then within that sort by the second one 
+
+skip(10) skips the first 10 results in the cursor
+
+limit(10) limits the return from the cursor to 10 docs 
+
+mongo will adhere to the order of operations you define in a chain 
+
+find({}, { field1: 1, field2: 1, "nestedDoc.field1": 1}) 
+// first value is a filter, second is the desired format, no value will just give you everything
+// _id can only be ommitted if explicity set to 0 -- otherwise things are 0 by default if the content shape is defined
+find({arrayField: "Value", {"arrayField.$": 1}}) returns just the array field and matching value 
+
+find({arrayField: {$all, ["value1", "value2"]}, {"arrayField.$": 1}})
+this will only output the documents with the arrayField containing "value2"
+this is because $all needs both to match, and the match is not true until value2 is satisfied. so that is the only thing
+that is returned!
+find({arrayField: "value1", {arrayField: {$elemMatch: {$eq: "value2"}}}})
+// Will return all cases where value1 is in the arrayField, but will only return value2 in the array for the results
+find({arrayField: "value1", {arrayField: {$slice: 2}}}}) returns only the first n elements from that array field in the results 
+$slice: [1, 2] // skip elem 1, take the next 2 after that
+
+updateOne({}, {$set: {field1: value1, field2: value2}}) // matching criteria, update defintion
+$set will overwrite existing, or add if it does not exist and will not touch anything that is not defined
+
+
+exampledevuser exampledev
+
