@@ -35,7 +35,7 @@ class ProductsPage extends Component {
         this.props.onError('Loading products failed. Please try again later');
         console.log(err);
       });
-  }
+  };
 
   render() {
     let content = <p>Loading products...</p>;

@@ -9,10 +9,11 @@ import ProductsPage from './pages/Product/Products';
 import ProductPage from './pages/Product/Product';
 import EditProductPage from './pages/Product/EditProduct';
 import AuthPage from './pages/Auth/Auth';
+import ConfirmAccountPage from './pages/Auth/ConfirmAccount';
 
 class App extends Component {
   state = {
-    isAuth: true,
+    isAuth: false,
     authMode: 'login',
     error: null
   };
@@ -102,6 +103,7 @@ class App extends Component {
           <Redirect from="/" to="/auth" exact />
           <Redirect from="/products" to="/auth" />
           <Redirect from="/product" to="/auth" />
+          <Route path="/confirm-account" component={ConfirmAccountPage} />
           <Route
             path="/auth"
             render={() => (
