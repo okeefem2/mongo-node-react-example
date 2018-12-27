@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import { Stitch, UserPasswordAuthProviderClient } from 'mongodb-stitch-browser-sdk';
 
 import './ConfirmAccount.css';
 
@@ -8,8 +9,14 @@ class AuthPage extends Component {
     const queryParams = new URLSearchParams(queryUrl);
     const token = queryParams.get('token');
     const tokenId = queryParams.get('tokenId');
-    console.log('Account confirmed');
-    this.props.history.replace('/');
+    const emailPassClient = Stitch.defaultAppClient.auth.getProviderClient(UserPasswordAuthProviderClient.factory);
+    emailPassClient.confirmUser(token, tokenId).then(() => {
+      console.log('Account confirmed');
+      this.props.history.replace('/');
+    }).catch(err => {
+      console.log(err);
+    });
+    
   }
 
   render() {

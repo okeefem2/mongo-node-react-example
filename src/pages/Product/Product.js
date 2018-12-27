@@ -1,5 +1,7 @@
+
 import React, { Component } from 'react';
-import axios from 'axios';
+import { Stitch, RemoteMongoClient } from 'mongodb-stitch-browser-sdk';
+import BSON from 'bson';
 
 import './Product.css';
 
@@ -7,10 +9,16 @@ class ProductPage extends Component {
   state = { isLoading: true, product: null };
 
   componentDidMount() {
-    axios
-      .get('http://localhost:3100/products/' + this.props.match.params.id)
-      .then(productResponse => {
-        this.setState({ isLoading: false, product: productResponse.data });
+    const mongoDb = Stitch.defaultAppClient.getServiceClient(RemoteMongoClient.factory, 'mongodb-atlas');
+
+    mongoDb.db('shop').collection('products')
+    .find({ _id: new BSON.ObjectID(this.props.match.params.id) })
+    .asArray()
+      .then(productDocs => {
+        const productDoc = productDocs[0];
+        productDoc.price = productDoc.price.toString();
+        productDoc._id = productDoc._id.toString();
+        this.setState({ isLoading: false, product: productDocs[0] });
       })
       .catch(err => {
         this.setState({ isLoading: false });

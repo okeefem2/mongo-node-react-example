@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import { Switch, Route, Redirect } from 'react-router-dom';
-import axios from 'axios';
+import { Stitch, UserPasswordAuthProviderClient, UserPasswordCredential } from 'mongodb-stitch-browser-sdk';
 
 import Header from './components/Header/Header';
 import Modal from './components/Modal/Modal';
@@ -17,6 +17,15 @@ class App extends Component {
     authMode: 'login',
     error: null
   };
+  client;
+
+  constructor() {
+    super();
+    this.client = Stitch.initializeDefaultAppClient('examplestitchapp-afspx');
+    // this.client.auth.addAuthListener(auth => {
+    //   this.setState({isAuth: auth.isLoggedIn});
+    // });
+  }
 
   logoutHandler = () => {
     this.setState({ isAuth: false });
@@ -27,24 +36,24 @@ class App extends Component {
     if (authData.email.trim() === '' || authData.password.trim() === '') {
       return;
     }
+    const emailPassClient = this.client.auth.getProviderClient(UserPasswordAuthProviderClient.factory);
     let request;
+
     if (this.state.authMode === 'login') {
-      request = axios.post('http://localhost:3100/login', authData);
+      const credential = new UserPasswordCredential(authData.email, authData.password);
+      request = this.client.auth.loginWithCredential(credential);
     } else {
-      request = axios.post('http://localhost:3100/signup', authData);
+      request = emailPassClient.registerWithEmail(authData.email, authData.password);
     }
     request
-      .then(authResponse => {
-        if (authResponse.status === 201 || authResponse.status === 200) {
-          const token = authResponse.data.token;
-          console.log(token);
-          // Theoretically, you would now store the token in localstorage + app state
-          // and use it for subsequent requests to protected backend resources
+      .then((result) => {
+        if (!!result) {
+          this.client.callFunction('greet', ['Michael']);
           this.setState({ isAuth: true });
         }
       })
       .catch(err => {
-        this.errorHandler(err.response.data.message);
+        this.errorHandler('An error occurred');
         console.log(err);
         this.setState({ isAuth: false });
       });

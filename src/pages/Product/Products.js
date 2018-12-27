@@ -1,7 +1,8 @@
 import React, { Component } from 'react';
-import axios from 'axios';
+import { Stitch, RemoteMongoClient } from 'mongodb-stitch-browser-sdk';
 
 import Products from '../../components/Products/Products';
+import BSON from 'bson';
 
 class ProductsPage extends Component {
   state = { isLoading: true, products: [] };
@@ -10,25 +11,31 @@ class ProductsPage extends Component {
   }
 
   productDeleteHandler = productId => {
-    axios
-      .delete('http://localhost:3100/products/' + productId)
+
+    const mongoDb = Stitch.defaultAppClient.getServiceClient(RemoteMongoClient.factory, 'mongodb-atlas');
+
+    mongoDb.db('shop').collection('products').deleteOne({ _id: new BSON.ObjectID(productId) })
       .then(result => {
         console.log(result);
         this.fetchData();
       })
       .catch(err => {
-        this.props.onError(
-          'Deleting the product failed. Please try again later'
-        );
+        this.props.onError('Deleting product failed. Please try again later');
         console.log(err);
       });
   };
 
   fetchData = () => {
-    axios
-      .get('http://localhost:3100/products')
-      .then(productsResponse => {
-        this.setState({ isLoading: false, products: productsResponse.data });
+    const mongoDb = Stitch.defaultAppClient.getServiceClient(RemoteMongoClient.factory, 'mongodb-atlas');
+
+    mongoDb.db('shop').collection('products').find().asArray()
+      .then(productDocs => {
+        productDocs = productDocs.map(productDoc => {
+          productDoc._id = productDoc._id.toString();
+          productDoc.price = productDoc.price.toString();
+          return productDoc;
+        });
+        this.setState({ isLoading: false, products: productDocs });
       })
       .catch(err => {
         this.setState({ isLoading: false, products: [] });
